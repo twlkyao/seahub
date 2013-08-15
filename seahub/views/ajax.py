@@ -12,7 +12,7 @@ from django.utils.http import urlquote
 from django.utils.translation import ugettext as _
 
 import seaserv
-from seaserv import seafile_api
+from seaserv import seafile_api, seafserv_rpc
 from pysearpc import SearpcError
 
 from seahub.auth.decorators import login_required
@@ -22,7 +22,8 @@ from seahub.views import get_repo_dirents
 from seahub.views.repo import get_nav_path, get_fileshare, get_dir_share_link
 import seahub.settings as settings
 from seahub.signals import repo_created
-from seahub.utils import check_filename_with_rename, star_file, unstar_file
+from seahub.utils import check_filename_with_rename, star_file, unstar_file, \
+EMPTY_SHA1, gen_block_get_url
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -709,3 +710,33 @@ def create_sub_repo(request, repo_id):
     repo_created.send(sender=None, org_id=-1, creator=owner, repo_id=sub_repo_id, repo_name=repo_name)
     return HttpResponse(json.dumps(result), content_type=content_type)
 
+def download_enc_file(request, repo_id, file_id):
+    if not request.is_ajax(): 
+        raise Http404
+
+    content_type = 'application/json; charset=utf-8'
+    result = {}  
+
+    op = 'downloadblks'
+    blklist = [] 
+
+    if file_id == EMPTY_SHA1:
+        result = { 'blklist':blklist, 'url':None, }    
+        return HttpResponse(json.dumps(result), content_type=content_type)
+
+    try: 
+        blks = seafile_api.list_file_by_file_id(file_id)
+    except SearpcError, e:
+        result['error'] = _(u'Failed to get file block list')
+        return HttpResponse(json.dumps(result), content_type=content_type)
+
+    blklist = blks.split('\n')
+    blklist = [i for i in blklist if len(i) == 40]
+    token = seafserv_rpc.web_get_access_token(repo_id, file_id,
+                                              op, request.user.username)
+    url = gen_block_get_url(token, None)
+    result = {
+        'blklist':blklist,
+        'url':url,
+        }    
+    return HttpResponse(json.dumps(result), content_type=content_type)
