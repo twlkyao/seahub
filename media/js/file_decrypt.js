@@ -33,12 +33,14 @@ self.onmessage = function (oEvent) {
 
 function decrypt(oEvent) {
   var decrypted = {index: oEvent.data.index};
-  var fileData = Latin1Formatter.parse(oEvent.data.block);
+  //var fileData = Latin1Formatter.parse(oEvent.data.block);
+  var fileData = oEvent.data.block;
   //var passphrase = oEvent.data.passphrase;
   var passphrase = '111';
   try{
     // Decrypt fileData
-    decrypted.fileData = CryptoJS.AES.decrypt(fileData, passphrase).toString(CryptoJS.enc.Utf8);
+    //decrypted.fileData = CryptoJS.AES.decrypt(fileData, passphrase).toString(CryptoJS.enc.Utf8);
+    decrypted.fileData = fileData;
     postMessage(decrypted);
   } catch (e){
     postMessage("Error"); // usually bad password

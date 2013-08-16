@@ -566,9 +566,10 @@ $('.file-download').click(function() {
             function reqBlock(index) {
                 $.ajax({
                     url: block_get_url_root + block_id_list[index],
-                    //dataType: 'text',
+                    beforeSend:function(xhr) {
+                        xhr.overrideMimeType("text/plain; charset=x-user-defined");
+                    },
                     success: function(data, textStatus, xhr) {
-                    console.log(data);
                         blocks.push({index: index, block: data});
                         if (blocks.length == block_id_list.length) {
                             // after receiving all blocks
@@ -592,33 +593,21 @@ $('.file-download').click(function() {
             function onWorkerMessage(e) {
                 if (typeof e.data != 'object') {
                     // error
-                    console.log('error when decrypt');
                     return;
                 }
                 decrypted_blocks.push({index: e.data.index, block: e.data.fileData}); 
-                console.log(e.data.fileData);
                 if (decrypted_blocks.length == block_id_list.length ) {
                     onFinish();
                 }
             }
 
             function onFinish() {
-                var file_type = '', file_ext;
-                if (file_name.lastIndexOf('.') != -1) {
-                    file_ext = file_name.substr(file_name.lastIndexOf('.') + 1);
-                } 
-                switch (file_ext) {
-                    case 'txt': file_type = 'text/plain';break;
-                    case 'jpg': file_type = 'image/jpeg';break;
-                }
-
                 var ordered_decrypted_blocks = [];
                 for (var i = 0, len = decrypted_blocks.length; i < len; i++) {
                     ordered_decrypted_blocks[decrypted_blocks[i].index] = decrypted_blocks[i].block;
                 }
 
                 var str2ab = function(str) {
-                    //var str = unescape(encodeURIComponent(str));
                     var buf = new ArrayBuffer(str.length); // 2 bytes for each char
                     var bufView = new Uint8Array(buf);
                     for (var i=0, strLen=str.length; i<strLen; i++) {
@@ -626,7 +615,7 @@ $('.file-download').click(function() {
                     }   
                     return buf;
                 }; 
-                var fileAsBlob = new Blob([str2ab(ordered_decrypted_blocks.join(''))], {type:file_type});
+                var fileAsBlob = new Blob([str2ab(ordered_decrypted_blocks.join(''))], {type:''});
                 var downloadLink = document.createElement("a");
                 downloadLink.download = file_name;
                 downloadLink.innerHTML = "Download File";
