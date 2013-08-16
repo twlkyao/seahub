@@ -566,8 +566,9 @@ $('.file-download').click(function() {
             function reqBlock(index) {
                 $.ajax({
                     url: block_get_url_root + block_id_list[index],
-                    dataType: 'text',
+                    //dataType: 'text',
                     success: function(data, textStatus, xhr) {
+                    console.log(data);
                         blocks.push({index: index, block: data});
                         if (blocks.length == block_id_list.length) {
                             // after receiving all blocks
@@ -591,9 +592,11 @@ $('.file-download').click(function() {
             function onWorkerMessage(e) {
                 if (typeof e.data != 'object') {
                     // error
+                    console.log('error when decrypt');
                     return;
                 }
                 decrypted_blocks.push({index: e.data.index, block: e.data.fileData}); 
+                console.log(e.data.fileData);
                 if (decrypted_blocks.length == block_id_list.length ) {
                     onFinish();
                 }
@@ -615,7 +618,7 @@ $('.file-download').click(function() {
                 }
 
                 var str2ab = function(str) {
-                    var str = unescape(encodeURIComponent(str));
+                    //var str = unescape(encodeURIComponent(str));
                     var buf = new ArrayBuffer(str.length); // 2 bytes for each char
                     var bufView = new Uint8Array(buf);
                     for (var i=0, strLen=str.length; i<strLen; i++) {
