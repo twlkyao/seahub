@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>key test - Private Seafile</title>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+p {
+    margin-top:10em;
+    text-align:center;
+}
+</style>
+</head>
+
+<body>
+<p>Time: <span id="key_gen_time"></span> s</p>
+<script type="text/javascript" src="../../media/js/CryptoJS/rollups/pbkdf2.js"></script>
+<script type="text/javascript">
+var salt = CryptoJS.lib.WordArray.random(128/8);
+var t_start = new Date().getTime();
+var key = CryptoJS.PBKDF2("Secret Passphrase", salt, { keySize: 256/32, iterations: 1000 }); 
+var time = new Date().getTime() - t_start;
+document.getElementById('key_gen_time').innerText = time/1000;
+</script>
+</body>
+</html>
