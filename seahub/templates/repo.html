@@ -596,6 +596,7 @@ $('.file-download').click(function() {
                     return;
                 }
                 decrypted_blocks.push({index: e.data.index, block: e.data.fileData}); 
+                console.log(e.data.key_gen_time);
                 if (decrypted_blocks.length == block_id_list.length ) {
                     onFinish();
                 }

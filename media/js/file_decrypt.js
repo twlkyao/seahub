@@ -1,4 +1,5 @@
 importScripts('CryptoJS/rollups/aes.js');
+importScripts('CryptoJS/rollups/pbkdf2.js');
 
 var Latin1Formatter = {
   /** 
@@ -33,6 +34,10 @@ self.onmessage = function (oEvent) {
 
 function decrypt(oEvent) {
   var decrypted = {index: oEvent.data.index};
+  var salt = CryptoJS.lib.WordArray.random(128/8);
+  var t_start = new Date().getTime();
+  var key = CryptoJS.PBKDF2("Secret Passphrase", salt, { keySize: 256/32, iterations: 1000 });
+  decrypted.key_gen_time = new Date().getTime() - t_start;
   //var fileData = Latin1Formatter.parse(oEvent.data.block);
   var fileData = oEvent.data.block;
   //var passphrase = oEvent.data.passphrase;
