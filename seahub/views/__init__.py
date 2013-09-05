@@ -1186,7 +1186,9 @@ def get_repo_download_url(request, repo_id):
     url += "&email=%s&token=%s" % (email, token)
     url += "&repo_id=%s&repo_name=%s" % (repo_id, quote_repo_name)
     if enc:
-        url += "&encrypted=1&magic=%s" % repo.magic
+        url += "&encrypted=1&magic=%s&enc_ver=%s" % (repo.magic, repo.enc_version)
+        if repo.enc_version == 2 and repo.random_key:
+            url += "&key=%s" % repo.random_key
 
     return url, ''
  
