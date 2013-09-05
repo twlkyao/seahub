@@ -4,22 +4,34 @@
 <title>key test - Private Seafile</title>
 <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
 <style type="text/css">
-p {
+body {
     margin-top:10em;
+}
+p {
     text-align:center;
+    margin:1em 0;
 }
 </style>
 </head>
 
 <body>
-<p>Time: <span id="key_gen_time"></span> s</p>
+<p>Time(cryptojs): <span id="key_gen_time"></span> s</p>
+<p>Time(sjcl): <span id="key_gen_time2"></span> s</p>
 <script type="text/javascript" src="../../media/js/CryptoJS/rollups/pbkdf2.js"></script>
+<script type="text/javascript" src="../../media/js/sjcl.min.js"></script>
 <script type="text/javascript">
-var salt = CryptoJS.lib.WordArray.random(128/8);
+var salt2 = [0xda, 0x90, 0x45, 0xc3, 0x06, 0xc7, 0xcc, 0x26];
+var salt = CryptoJS.lib.WordArray.create(salt);
+
 var t_start = new Date().getTime();
 var key = CryptoJS.PBKDF2("Secret Passphrase", salt, { keySize: 256/32, iterations: 1000 }); 
 var time = new Date().getTime() - t_start;
 document.getElementById('key_gen_time').innerText = time/1000;
+
+var t_start2 = new Date().getTime();
+var key = sjcl.misc.pbkdf2("Secret Passphrase", salt2, 1000, 256, null);
+var time = new Date().getTime() - t_start2;
+document.getElementById('key_gen_time2').innerText = time/1000;
 </script>
 </body>
 </html>
