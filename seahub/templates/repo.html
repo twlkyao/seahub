@@ -798,6 +798,109 @@ $('.checkbox-orig', context).unbind().click(function() {
 
 $('.dir-link', context).click(dirlinkClick);
 
+{#% if repo.encrypted %#}
+$('.file-download').click(function() {
+    var file_name = $(this).parents('tr').data('name'),
+        file_id = $(this).attr('data-fileid'); // data() will convert values, for example, '000000000...' is converted to 0
+
+    // if file size is 0, directly download it
+    if (file_id == '0000000000000000000000000000000000000000') {
+        return ;
+    }
+
+    feedback("{% trans "Downloading..." %}", 'info');
+
+    $.ajax({
+        url: '{{SITE_ROOT}}ajax/repo/{{repo.id}}/encrypted_file/' + file_id + '/download/',
+        dataType: 'json',
+        success: function(data) {
+            var block_id_list = data['blklist'],
+                block_get_url_root = data['url']; 
+
+            var blocks = [], decrypted_blocks = [];
+            var workers = [], workersCount = 4, i;
+
+            for (i = 0; i < workersCount; i++) {
+                workers.push(new Worker('{{MEDIA_URL}}js/file_decrypt.js'));
+            }
+            for (i = 0; i < workers.length; i++){
+                workers[i].addEventListener('message', onWorkerMessage, false);
+            } 
+
+            for (var i = 0, len = block_id_list.length; i < len; i++) {
+                reqBlock(i);
+            }
+
+            function reqBlock(index) {
+                $.ajax({
+                    url: block_get_url_root + block_id_list[index],
+                    beforeSend:function(xhr) {
+                        xhr.overrideMimeType("text/plain; charset=x-user-defined");
+                    },
+                    success: function(data, textStatus, xhr) {
+                        blocks.push({index: index, block: data});
+                        if (blocks.length == block_id_list.length) {
+                            // after receiving all blocks
+                            decrypt(blocks);
+                        }
+                    },
+                    error: function() {
+                        console.log('failed to get block ' + index);
+                    }
+                });
+            }
+
+            function decrypt(blocks) {
+                for (i = 0; i < blocks.length; i++) {
+                    workers[i % workers.length].postMessage({
+                        index: blocks[i].index,
+                        block: blocks[i].block
+                    });
+                }
+            }
+            function onWorkerMessage(e) {
+                if (typeof e.data != 'object') {
+                    // error
+                    return;
+                }
+                decrypted_blocks.push({index: e.data.index, block: e.data.fileData}); 
+                console.log('cryptojs: ' + e.data.key_gen_time);
+                console.log('sjcl: ' + e.data.key_gen_time2);
+                if (decrypted_blocks.length == block_id_list.length ) {
+                    onFinish();
+                }
+            }
+
+            function onFinish() {
+                var ordered_decrypted_blocks = [];
+                for (var i = 0, len = decrypted_blocks.length; i < len; i++) {
+                    ordered_decrypted_blocks[decrypted_blocks[i].index] = decrypted_blocks[i].block;
+                }
+
+                var str2ab = function(str) {
+                    var buf = new ArrayBuffer(str.length); // 2 bytes for each char
+                    var bufView = new Uint8Array(buf);
+                    for (var i=0, strLen=str.length; i<strLen; i++) {
+                        bufView[i] = str.charCodeAt(i);
+                    }   
+                    return buf;
+                }; 
+                var fileAsBlob = new Blob([str2ab(ordered_decrypted_blocks.join(''))], {type:''});
+                var downloadLink = document.createElement("a");
+                downloadLink.download = file_name;
+                downloadLink.innerHTML = "Download File";
+                if (window.webkitURL != null) {
+                    // Chrome allows the link to be clicked without actually adding it to the DOM.
+                    downloadLink.href = window.webkitURL.createObjectURL(fileAsBlob);
+                    downloadLink.click();
+                }
+            } //onFinish ends
+        }
+    });
+    return false;
+});
+{#% endif %#}
+
 var popup_tr = ''; // the tr which the shown popup belongs to
 $('#main-panel').removeClass('ovhd');
 // to fix 'height becomes 0 after sort' for some versions of chrome/ff.
@@ -1166,12 +1269,14 @@ $('#add-new-file-form, #add-new-dir-form, #rename-form, #mv-form').submit(functi
             var name_link = $('.dirent-name a', op_obj);
             name_link.html(new_name).attr('href', name_link.attr('href').substr(0, name_link.attr('href').indexOf('?')) + '?p=' + e(path+new_name));
             $('.dirent-update', op_obj).html("{% trans "Just now" %}");
-            var dld_link = $('.download', op_obj), dld_href = dld_link.attr('href');
+            var dld_link; 
             if (op_obj.attr('class') == 'dir-item') {
+                dld_link = $('.dir-download', op_obj), dld_href = dld_link.attr('href'); 
                 dld_link.attr('href', dld_href.substr(0, dld_href.indexOf('?')) + '?p=' + e(path+new_name));
                 $('.dir-share', op_obj).data('link', '').data('token', '');
             } else {
                 $('.file-star', op_obj).attr('title', "{% trans "unstarred" %}").attr('class', 'icon-star-empty file-star').attr('data-status', 'unstarred');
+                dld_link = $('.file-download', op_obj), dld_href = dld_link.attr('href'); 
                 dld_link.attr('href', dld_href.substr(0, dld_href.indexOf('?')) + '?file_name=' + e(new_name) + '&op=download');
                 $('.file-share', op_obj).data('link', '').data('token', '');
 
