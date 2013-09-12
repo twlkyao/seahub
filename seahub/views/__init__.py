@@ -89,7 +89,7 @@ if HAS_OFFICE_CONVERTER:
 import seahub.settings as settings
 from seahub.settings import FILE_PREVIEW_MAX_SIZE, INIT_PASSWD, USE_PDFJS, FILE_ENCODING_LIST, \
     FILE_ENCODING_TRY_LIST, SEND_EMAIL_ON_ADDING_SYSTEM_MEMBER, SEND_EMAIL_ON_RESETTING_USER_PASSWD, \
-    ENABLE_SUB_LIBRARY
+    ENABLE_SUB_LIBRARY, KEEP_ENC_REPO_PASSWD
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -1274,30 +1274,39 @@ def repo_create(request):
     content_type = 'application/json; charset=utf-8'
     
     form = RepoCreateForm(request.POST)
-    if form.is_valid():
-        repo_name = form.cleaned_data['repo_name']
-        repo_desc = form.cleaned_data['repo_desc']
-        passwd = form.cleaned_data['passwd']
-        user = request.user.username
-        
-        try:
-            repo_id = seafserv_threaded_rpc.create_repo(repo_name, repo_desc,
-                                                        user, passwd)
-        except:
-            repo_id = None
-        if not repo_id:
-            result['error'] = _(u"Failed to create library")
-        else:
-            result['success'] = True
-            repo_created.send(sender=None,
-                              org_id=-1,
-                              creator=user,
-                              repo_id=repo_id,
-                              repo_name=repo_name)
-        return HttpResponse(json.dumps(result), content_type=content_type)
-    else:
+    if not form.is_valid():
         return HttpResponseBadRequest(json.dumps(form.errors),
                                       content_type=content_type)
+
+    repo_name = form.cleaned_data['repo_name']
+    repo_desc = form.cleaned_data['repo_desc']
+    encryption = int(form.cleaned_data['encryption'])
+
+    passwd = form.cleaned_data['passwd']
+    magic_str = form.cleaned_data['magic_str']
+    random_key = form.cleaned_data['random_key']
+
+    user = request.user.username
+    try:
+        if not encryption:
+            repo_id = seafile_api.create_repo(repo_name, repo_desc, user, None)
+        else:
+            if KEEP_ENC_REPO_PASSWD:
+                repo_id = seafile_api.create_repo(repo_name, repo_desc, user, passwd)
+            else:
+                repo_id = seafile_api.create_enc_repo(repo_name, repo_desc, user, magic_str, random_key, enc_version=2)
+    except SearpcError, e:
+        repo_id = None
+    if not repo_id:
+        result['error'] = _(u"Internal Server Error")
+    else:
+        result['success'] = True
+        repo_created.send(sender=None,
+                          org_id=-1,
+                          creator=user,
+                          repo_id=repo_id,
+                          repo_name=repo_name)
+    return HttpResponse(json.dumps(result), content_type=content_type)
 
 def render_file_revisions (request, repo_id):
     """List all history versions of a file."""
