@@ -64,6 +64,7 @@ class RepoCreateForm(forms.Form):
             'min_length': _(u'Password is too short (minimum is 3 characters)'),
             'max_length': _(u'Password is too long (maximum is 30 characters)'),
             })
+    uuid = forms.CharField(required=False)
     magic_str = forms.CharField(required=False)
     random_key = forms.CharField(required=False)
     def clean_repo_name(self):
@@ -87,9 +88,10 @@ class RepoCreateForm(forms.Form):
             if passwd != passwd_again:
                 raise forms.ValidationError(_("Passwords don't match"))
         else:
+            uuid = self.cleaned_data['uuid']
             magic_str = self.cleaned_data['magic_str']
             random_key = self.cleaned_data['random_key']
-            if not (magic_str and random_key):
+            if not (uuid and magic_str and random_key):
                 raise forms.ValidationError(_("Argument missing"))
 
         return self.cleaned_data

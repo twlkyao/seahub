@@ -15,23 +15,16 @@ p {
 </head>
 
 <body>
-<p>Time(cryptojs): <span id="key_gen_time"></span> s</p>
-<p>Time(sjcl): <span id="key_gen_time2"></span> s</p>
 <script type="text/javascript" src="../../media/js/CryptoJS/rollups/pbkdf2.js"></script>
 <script type="text/javascript" src="../../media/js/sjcl.min.js"></script>
 <script type="text/javascript">
-var salt2 = [0xda, 0x90, 0x45, 0xc3, 0x06, 0xc7, 0xcc, 0x26];
-var salt = CryptoJS.lib.WordArray.create(salt);
-
-var t_start = new Date().getTime();
-var key = CryptoJS.PBKDF2("Secret Passphrase", salt, { keySize: 256/32, iterations: 1000 }); 
-var time = new Date().getTime() - t_start;
-document.getElementById('key_gen_time').innerText = time/1000;
-
-var t_start2 = new Date().getTime();
-var key = sjcl.misc.pbkdf2("Secret Passphrase", salt2, 1000, 256, null);
-var time = new Date().getTime() - t_start2;
-document.getElementById('key_gen_time2').innerText = time/1000;
+//var salt = [0xda, 0x90, 0x45, 0xc3, 0x06, 0xc7, 0xcc, 0x26];
+var salt = [0xda9045c3, 0x06c7cc26]
+var uu_id = '887d4857-c63e-4100-91fe-20b245958386';
+var passwd = '111';
+var magic_array = sjcl.misc.pbkdf2(uu_id + passwd, salt, 1000, 32*8, null); // 32 bytes
+var magic_str = sjcl.codec.hex.fromBits(magic_array);
+console.log(magic_str);
 </script>
 </body>
 </html>

@@ -20,7 +20,7 @@ from seahub.views import gen_path_link, get_user_permission, get_repo_dirents, \
 
 from seahub.utils import get_ccnetapplet_root, gen_file_upload_url, \
     get_httpserver_root, gen_dir_share_link
-from seahub.settings import ENABLE_SUB_LIBRARY
+from seahub.settings import ENABLE_SUB_LIBRARY, KEEP_ENC_REPO_PASSWD
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -160,7 +160,7 @@ def render_repo(request, repo):
                 'repo': repo,
                 }, context_instance=RequestContext(request))
 
-    if repo.encrypted and not is_password_set(repo.id, username):
+    if KEEP_ENC_REPO_PASSWD and repo.encrypted and not is_password_set(repo.id, username):
         return render_to_response('decrypt_repo_form.html', {
                 'repo': repo,
                 'next': get_next_url_from_request(request) or \

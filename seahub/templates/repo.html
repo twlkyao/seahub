@@ -7,6 +7,9 @@
 <style type="text/css">
 #main { width:auto; }
 #footer { display:none; }
+{% if not keep_enc_repo_passwd and repo.encrypted %}
+#main { display:none; }
+{% endif %}
 </style>    
 <!-- Shim to make HTML5 elements usable in older Internet Explorer versions -->
 <!--[if lt IE 9]><script src="{{ MEDIA_URL}}js/html5shiv.js"></script><![endif]-->
@@ -220,6 +223,53 @@
 {% endblock %}
 
 {% block extra_script %}
+{% if not keep_enc_repo_passwd and repo.encrypted %}
+{% if repo.magic %}
+<script type="text/javascript" src="{{MEDIA_URL}}js/sjcl.min.js"></script>
+<script type="text/javascript" src="{{MEDIA_URL}}js/CryptoJS/rollups/aes.js"></script>
+{% endif %}
+<script type="text/javascript">
+var decrypt_form = $('<form id="repo-decrypt" style="width:928px;padding:10px 10px 15px;border:1px solid #ddd;border-radius:3px;margin:2em auto 0"> <p>{% trans "This library is encrypted. Please input the password if you want to browse it online. And the password will be kept for only 1 hour." %}</p>    <input type="password" name="password" maxlength="64" autofocus /> <input type="submit" value="{% trans "Submit" %}" /> <p class="error hide"></p> </form>');
+$('#header').after(decrypt_form);
+$('[type="submit"]', decrypt_form).click(function() {
+    var passwd = $('[name="password"]', decrypt_form).val(),
+        err = $('.error', decrypt_form);
+    if (!$.trim(passwd)) {
+        err.html("{% trans "Please enter the password." %}").removeClass('hide');
+        return false;
+    }
+
+    //var salt = [0xda, 0x90, 0x45, 0xc3, 0x06, 0xc7, 0xcc, 0x26];
+    var salt = [0xda9045c3, 0x06c7cc26];
+    var magic_array = sjcl.misc.pbkdf2('{{repo.id}}' + passwd, salt, 1000, 32*8, null),
+        magic_str = sjcl.codec.hex.fromBits(magic_array); //convert to hex
+    if (magic_str == '{{repo.magic}}') {
+        decrypt_form.remove();
+        $('#main').show();
+
+        var key_array = sjcl.misc.pbkdf2(passwd, salt, 1000, 32*8, null);
+        var iv_array = sjcl.misc.pbkdf2(key_array, salt, 10, 32*8, null);
+        var secret_key_array = CryptoJS.AES.decrypt(CryptoJS.enc.Hex.parse('{{repo.random_key}}').toString(CryptoJS.enc.Base64), CryptoJS.lib.WordArray.create(key_array), {iv: CryptoJS.lib.WordArray.create(iv_array)});
+        
+        var secret_key = secret_key_array.toString(CryptoJS.enc.Hex);
+        var enc_key_array = sjcl.misc.pbkdf2(secret_key, salt, 1000, 32*8, null);
+        var enc_iv_array = sjcl.misc.pbkdf2(enc_key_array, salt, 10, 32*8, null);
+
+        var enc_key = sjcl.codec.hex.fromBits(enc_key_array);
+        var enc_iv = sjcl.codec.hex.fromBits(enc_iv_array);
+        if ('localStorage' in window && window['localStorage'] !== null) {
+            var repo_id = '{{repo.id}}';
+            localStorage[repo_id + '_decrypt_t'] = new Date().getTime();
+            localStorage[repo_id + '_enc_key'] = enc_key;
+            localStorage[repo_id + '_enc_iv'] = enc_iv;
+        } 
+    } else {
+        err.html("{% trans "Wrong password" %}").removeClass('hide');
+    }
+    return false;
+});
+</script>
+{% endif %}
 {% upload_js %}
 <script src="{{ MEDIA_URL}}js/jquery.ui.widget.js"></script>
 <script src="{{ MEDIA_URL}}js/tmpl.min.js"></script>

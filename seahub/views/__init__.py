@@ -1186,7 +1186,9 @@ def get_repo_download_url(request, repo_id):
     url += "&email=%s&token=%s" % (email, token)
     url += "&repo_id=%s&repo_name=%s" % (repo_id, quote_repo_name)
     if enc:
-        url += "&encrypted=1&magic=%s" % repo.magic
+        url += "&encrypted=1&magic=%s&enc_ver=%s" % (repo.magic, repo.enc_version)
+        if repo.enc_version == 2 and repo.random_key:
+            url += "&key=%s" % repo.random_key
 
     return url, ''
  
@@ -1275,7 +1277,7 @@ def repo_create(request):
     
     form = RepoCreateForm(request.POST)
     if not form.is_valid():
-        return HttpResponseBadRequest(json.dumps(form.errors),
+        return HttpResponseBadRequest(json.dumps(form.errors), status=400,
                                       content_type=content_type)
 
     repo_name = form.cleaned_data['repo_name']
@@ -1283,6 +1285,7 @@ def repo_create(request):
     encryption = int(form.cleaned_data['encryption'])
 
     passwd = form.cleaned_data['passwd']
+    uuid = form.cleaned_data['uuid']
     magic_str = form.cleaned_data['magic_str']
     random_key = form.cleaned_data['random_key']
 
@@ -1294,11 +1297,13 @@ def repo_create(request):
             if KEEP_ENC_REPO_PASSWD:
                 repo_id = seafile_api.create_repo(repo_name, repo_desc, user, passwd)
             else:
-                repo_id = seafile_api.create_enc_repo(repo_name, repo_desc, user, magic_str, random_key, enc_version=2)
+                repo_id = seafile_api.create_enc_repo(uuid, repo_name, repo_desc, user, magic_str, random_key, enc_version=2)
     except SearpcError, e:
         repo_id = None
+
     if not repo_id:
         result['error'] = _(u"Internal Server Error")
+        return HttpResponse(json.dumps(result), status=500, content_type=content_type)
     else:
         result['success'] = True
         repo_created.send(sender=None,
@@ -1306,7 +1311,7 @@ def repo_create(request):
                           creator=user,
                           repo_id=repo_id,
                           repo_name=repo_name)
-    return HttpResponse(json.dumps(result), content_type=content_type)
+        return HttpResponse(json.dumps(result), content_type=content_type)
 
 def render_file_revisions (request, repo_id):
     """List all history versions of a file."""
